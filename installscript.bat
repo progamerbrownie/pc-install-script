@@ -1,17 +1,24 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-:: Check if winget is installed
+:: Check for winget and install/update if needed
+:checkWinget
 where winget >nul 2>&1
 if %errorlevel% neq 0 (
     echo Installing winget...
     powershell -Command "Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe" >nul 2>&1
     if !errorlevel! neq 0 (
         echo Failed to install winget. Please install it manually from the Microsoft Store.
-        timeout /t 3 >nul
+        pause
         exit /b 1
     )
+) else (
+    echo Checking for winget updates...
+    winget upgrade --id Microsoft.DesktopAppInstaller >nul 2>&1
 )
+
+:: Start the script by going to the main menu
+goto main
 
 :: Add these functions at the start of the file
 :showProgress
@@ -40,6 +47,13 @@ for /l %%i in (0,2,100) do (
 )
 exit /b
 
+:main
+cls
+echo Welcome to New PC Setup
+echo Press any key to continue...
+pause >nul
+goto menu
+
 :menu
 cls
 echo ================================
@@ -54,7 +68,13 @@ set /p choice="Enter your choice: "
 
 if "%choice%"=="1" goto debloat
 if "%choice%"=="2" goto install
-if "%choice%"=="3" exit
+if "%choice%"=="3" (
+    cls
+    echo Thank you for using New PC Setup
+    echo Press any key to exit...
+    pause >nul
+    goto :eof
+)
 goto menu
 
 :debloat
@@ -101,7 +121,8 @@ echo [B] Games
 echo [C] Streaming
 echo [D] Misc
 echo [E] Office
-echo [F] Return to main menu
+echo [F] Mouse Software
+echo [G] Return to main menu
 echo.
 set /p install_choice="Enter your choice: "
 
@@ -110,7 +131,8 @@ if /i "%install_choice%"=="B" goto games
 if /i "%install_choice%"=="C" goto streaming
 if /i "%install_choice%"=="D" goto misc
 if /i "%install_choice%"=="E" goto office
-if /i "%install_choice%"=="F" goto menu
+if /i "%install_choice%"=="F" goto mouse
+if /i "%install_choice%"=="G" goto menu
 goto install
 
 :browsers
@@ -253,10 +275,11 @@ echo [3] Bitwarden
 echo [4] Cloudflare WARP
 echo [5] 7-Zip
 echo [6] OBS Studio
-echo [7] Return to install menu
+echo [7] CRU (Custom Resolution Utility)
+echo [8] Return to install menu
 echo.
-set /p misc_choice="Enter numbers to install (separate with spaces) or 7 to return: "
-if "%misc_choice%"=="7" goto install
+set /p misc_choice="Enter numbers to install (separate with spaces) or 8 to return: "
+if "%misc_choice%"=="8" goto install
 
 echo %misc_choice% | find "1" >nul && (
     start /b /wait "" winget install -h --accept-source-agreements --accept-package-agreements Discord.Discord >nul 2>&1
@@ -281,6 +304,14 @@ echo %misc_choice% | find "5" >nul && (
 echo %misc_choice% | find "6" >nul && (
     start /b /wait "" winget install -h --accept-source-agreements --accept-package-agreements OBSProject.OBSStudio >nul 2>&1
     call :installProgram "OBS Studio"
+)
+echo %misc_choice% | find "7" >nul && (
+    echo Downloading Custom Resolution Utility...
+    powershell -command "Invoke-WebRequest -Uri 'https://customresolutionutility.b-cdn.net/cru-1.5.2.zip' -OutFile '%temp%\CRU.zip'" >nul 2>&1
+    echo Extracting files...
+    powershell -command "Expand-Archive -Path '%temp%\CRU.zip' -DestinationPath '%userprofile%\Documents\CRU' -Force" >nul 2>&1
+    del /f /q "%temp%\CRU.zip" >nul 2>&1
+    call :installProgram "Custom Resolution Utility"
 )
 timeout /t 3
 goto misc
@@ -319,3 +350,38 @@ echo %office_choice% | find "4" >nul && (
 )
 timeout /t 3
 goto office
+
+:mouse
+cls
+echo ================================
+echo        Mouse Software
+echo ================================
+echo.
+echo [1] Glorious Model O/O- Firmware v1.0.9
+echo [2] Return to install menu
+echo.
+set /p mouse_choice="Enter your choice: "
+if "%mouse_choice%"=="2" goto install
+
+if "%mouse_choice%"=="1" (
+    echo Downloading Glorious Model O/O- Firmware...
+    powershell -command "Invoke-WebRequest -Uri 'https://downloads.gloriousgamingservices.com/download/ModelO_1-0-9.zip' -OutFile '%temp%\ModelO.zip'" >nul 2>&1
+    echo Extracting files...
+    powershell -command "Expand-Archive -Path '%temp%\ModelO.zip' -DestinationPath '%userprofile%\Desktop\Glorious_Model_O' -Force" >nul 2>&1
+    del /f /q "%temp%\ModelO.zip" >nul 2>&1
+    call :installProgram "Glorious Model O/O- Firmware"
+)
+timeout /t 3
+goto mouse
+
+:: Add error handling at the end of the file
+:error
+echo An error occurred
+echo Press any key to exit...
+pause >nul
+exit /b 1
+
+:exit
+echo Press any key to exit...
+pause >nul
+goto :eof
