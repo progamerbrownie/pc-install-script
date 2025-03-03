@@ -1,16 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-:: Check if the script is running as Administrator
-NET SESSION >nul 2>&1
-if %errorlevel% neq 0 (
-    echo This script requires Administrator privileges. Restarting with elevated rights...
-    pause
-    :: Restart the script as Administrator
-    powershell -Command "Start-Process '%~f0' -Verb runAs"
-    exit /b
-)
-
 :: Check for winget and install/update if needed
 :checkWinget
 where winget >nul 2>&1
@@ -46,9 +36,10 @@ for /l %%i in (1,1,50) do (
     )
 )
 
-:: Clear the line and print the updated progress bar
-cls
+:: Update only the progress bar line
 echo [!done!!remaining!] !progress!%% Complete
+set /p="." <nul   :: To overwrite the line without clearing the screen
+timeout /t 1 >nul
 exit /b
 
 :installProgram
@@ -103,9 +94,7 @@ echo ================================
 echo     Windows Security-Only Updates
 echo ================================
 echo.
-echo Starting Windows security updates...
-echo This will install only critical and security-related updates.
-echo.
+echo Checking if PSWindowsUpdate module is installed...
 
 :: Check if PSWindowsUpdate is installed
 powershell -Command "if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) { Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser }"
@@ -120,6 +109,7 @@ echo Security updates completed.
 timeout /t 3
 goto menu
 
+:: debloat function
 :debloat
 cls
 echo Checking for unnecessary apps...
@@ -152,7 +142,6 @@ echo %debloat_choice% | find "4" >nul && (
 )
 timeout /t 3
 goto debloat
-
 
 :install
 cls
