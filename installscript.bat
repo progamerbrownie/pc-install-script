@@ -1,6 +1,16 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+:: Check if the script is running as Administrator
+NET SESSION >nul 2>&1
+if %errorlevel% neq 0 (
+    echo This script requires Administrator privileges. Restarting with elevated rights...
+    pause
+    :: Restart the script as Administrator
+    powershell -Command "Start-Process '%~f0' -Verb runAs"
+    exit /b
+)
+
 :: Check for winget and install/update if needed
 :checkWinget
 where winget >nul 2>&1
@@ -24,14 +34,21 @@ goto main
 :showProgress
 set /a "progress=%~1"
 set "bar="
+set "done="
+set "remaining="
+
+:: Determine how many blocks to show based on progress
 for /l %%i in (1,1,50) do (
     if %%i leq !progress! (
-        set "bar=!bar!█"
+        set "done=!done!█"    :: Completed part of the progress bar
     ) else (
-        set "bar=!bar!░"
+        set "remaining=!remaining!░"   :: Remaining part of the progress bar
     )
 )
-echo [!bar!] !progress!%%
+
+:: Clear the line and print the updated progress bar
+cls
+echo [!done!!remaining!] !progress!%% Complete
 exit /b
 
 :installProgram
@@ -62,19 +79,45 @@ echo ================================
 echo.
 echo [1] Debloat Windows
 echo [2] Install Programs
-echo [3] Exit
+echo [3] Install Windows Security-Only Updates
+echo [4] Exit
 echo.
 set /p choice="Enter your choice: "
 
 if "%choice%"=="1" goto debloat
 if "%choice%"=="2" goto install
-if "%choice%"=="3" (
+if "%choice%"=="3" goto security_updates
+if "%choice%"=="4" (
     cls
     echo Thank you for using New PC Setup
     echo Press any key to exit...
     pause >nul
     goto :eof
 )
+goto menu
+
+:: Option 3 - Install Windows Security-Only Updates
+:security_updates
+cls
+echo ================================
+echo     Windows Security-Only Updates
+echo ================================
+echo.
+echo Starting Windows security updates...
+echo This will install only critical and security-related updates.
+echo.
+
+:: Check if PSWindowsUpdate is installed
+powershell -Command "if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) { Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser }"
+
+:: Now run the security-only updates
+echo Starting Windows security updates...
+echo This will install only critical and security-related updates.
+echo.
+powershell -Command "Import-Module PSWindowsUpdate; Get-WindowsUpdate -Category 'SecurityUpdates' -Install -AcceptAll -IgnoreReboot"
+
+echo Security updates completed.
+timeout /t 3
 goto menu
 
 :debloat
@@ -109,6 +152,7 @@ echo %debloat_choice% | find "4" >nul && (
 )
 timeout /t 3
 goto debloat
+
 
 :install
 cls
@@ -276,10 +320,11 @@ echo [4] Cloudflare WARP
 echo [5] 7-Zip
 echo [6] OBS Studio
 echo [7] CRU (Custom Resolution Utility)
-echo [8] Return to install menu
+echo [8] ShareX
+echo [9] Return to install menu
 echo.
-set /p misc_choice="Enter numbers to install (separate with spaces) or 8 to return: "
-if "%misc_choice%"=="8" goto install
+set /p misc_choice="Enter numbers to install (separate with spaces) or 9 to return: "
+if "%misc_choice%"=="9" goto install
 
 echo %misc_choice% | find "1" >nul && (
     start /b /wait "" winget install -h --accept-source-agreements --accept-package-agreements Discord.Discord >nul 2>&1
@@ -312,6 +357,13 @@ echo %misc_choice% | find "7" >nul && (
     powershell -command "Expand-Archive -Path '%temp%\CRU.zip' -DestinationPath '%userprofile%\Documents\CRU' -Force" >nul 2>&1
     del /f /q "%temp%\CRU.zip" >nul 2>&1
     call :installProgram "Custom Resolution Utility"
+)
+echo %misc_choice% | find "8" >nul && (
+    echo Downloading ShareX...
+    powershell -command "Invoke-WebRequest -Uri 'https://github.com/ShareX/ShareX/releases/download/v17.0.0/ShareX-17.0.0-setup.exe' -OutFile '%temp%\ShareX-17.0.0-setup.exe'" >nul 2>&1
+    echo Installing ShareX...
+    start /wait %temp%\ShareX-17.0.0-setup.exe /SILENT /VERYSILENT /SUPPRESSMSGBOXES >nul 2>&1
+    call :installProgram "ShareX"
 )
 timeout /t 3
 goto misc
